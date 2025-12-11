@@ -11,7 +11,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-mesh flex items-center justify-center font-sans text-slate-800">
-      <div className="w-full max-w-[390px] h-[85vh] max-h-[850px] glass-panel rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative border border-white/50">
+      <div className="w-full max-w-[390px] sm:max-w-[420px] h-[85vh] sm:h-[90vh] max-h-[850px] glass-panel rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative border border-white/50">
         <header className="bg-white/40 backdrop-blur-md p-4 flex justify-between items-center border-b border-white/50 z-10">
           <h1 className="text-slate-800 font-bold text-lg tracking-wide flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
