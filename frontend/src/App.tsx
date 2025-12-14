@@ -2,12 +2,31 @@ import React, { useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit';
 import { StayFeature } from './StayFeature';
 import { ResidentCard } from './components/ResidentCard';
+import { WalletPage } from './components/WalletPage';
+import { DaoVoting } from './components/DaoVoting';
 import { Toaster } from 'react-hot-toast';
-import { MapPin, UserSquare2 } from 'lucide-react';
+import { MapPin, UserSquare2, Wallet, Vote } from 'lucide-react';
 import clsx from 'clsx';
 
+type TabType = 'checkin' | 'card' | 'wallet' | 'vote';
+
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'checkin' | 'card'>('checkin');
+  const [activeTab, setActiveTab] = useState<TabType>('checkin');
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'checkin':
+        return <StayFeature />;
+      case 'card':
+        return <ResidentCard />;
+      case 'wallet':
+        return <WalletPage />;
+      case 'vote':
+        return <DaoVoting />;
+      default:
+        return <StayFeature />;
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-mesh flex items-center justify-center font-sans text-slate-800">
@@ -23,10 +42,10 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto relative pb-20">
-          {activeTab === 'checkin' ? <StayFeature /> : <ResidentCard />}
+          {renderContent()}
         </main>
 
-        {/* Bottom Navigation Tab */}
+        {/* Bottom Navigation Tab - 4 tabs */}
         <div className="absolute bottom-0 left-0 w-full glass-tab flex justify-around items-center h-16 z-20">
           <button
             onClick={() => setActiveTab('checkin')}
@@ -35,8 +54,8 @@ const App: React.FC = () => {
               activeTab === 'checkin' ? "text-blue-600 scale-110" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <MapPin className={clsx("w-6 h-6 mb-1", activeTab === 'checkin' && "fill-current drop-shadow-sm")} />
-            <span className="text-[10px] font-bold tracking-wider">Check-in</span>
+            <MapPin className={clsx("w-5 h-5 mb-1", activeTab === 'checkin' && "fill-current drop-shadow-sm")} />
+            <span className="text-[9px] font-bold tracking-wider">Check-in</span>
           </button>
 
           <button
@@ -46,8 +65,30 @@ const App: React.FC = () => {
               activeTab === 'card' ? "text-purple-600 scale-110" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <UserSquare2 className={clsx("w-6 h-6 mb-1", activeTab === 'card' && "fill-current drop-shadow-sm")} />
-            <span className="text-[10px] font-bold tracking-wider">My Card</span>
+            <UserSquare2 className={clsx("w-5 h-5 mb-1", activeTab === 'card' && "fill-current drop-shadow-sm")} />
+            <span className="text-[9px] font-bold tracking-wider">My Card</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('wallet')}
+            className={clsx(
+              "flex flex-col items-center justify-center w-full h-full transition-all duration-300",
+              activeTab === 'wallet' ? "text-green-600 scale-110" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Wallet className={clsx("w-5 h-5 mb-1", activeTab === 'wallet' && "fill-current drop-shadow-sm")} />
+            <span className="text-[9px] font-bold tracking-wider">Wallet</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('vote')}
+            className={clsx(
+              "flex flex-col items-center justify-center w-full h-full transition-all duration-300",
+              activeTab === 'vote' ? "text-orange-600 scale-110" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Vote className={clsx("w-5 h-5 mb-1", activeTab === 'vote' && "fill-current drop-shadow-sm")} />
+            <span className="text-[9px] font-bold tracking-wider">Vote</span>
           </button>
         </div>
 
@@ -70,5 +111,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
