@@ -5,7 +5,7 @@ import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-ki
 import { Transaction } from '@mysten/sui/transactions';
 import toast from 'react-hot-toast';
 import { uploadImageToIPFS, uploadMetadataToIPFS } from '../utils/pinata';
-import { PACKAGE_ID, RESIDENT_CARD_MODULE, MINT_RESIDENT_CARD, CLOCK_OBJECT_ID } from '../utils/constants';
+import { PACKAGE_ID, RESIDENT_CARD_MODULE, MINT_RESIDENT_CARD, CLOCK_OBJECT_ID, RESIDENT_REGISTRY_ID } from '../utils/constants';
 import { useResidentNFT } from '../hooks/useResidentNFT';
 
 type MintStatus = 'idle' | 'uploading_image' | 'uploading_metadata' | 'minting' | 'success';
@@ -104,6 +104,7 @@ export const ResidentCard: React.FC = () => {
             tx.moveCall({
                 target: `${PACKAGE_ID}::${RESIDENT_CARD_MODULE}::${MINT_RESIDENT_CARD}`,
                 arguments: [
+                    tx.object(RESIDENT_REGISTRY_ID), // Registry（重複防止用）
                     tx.pure.vector('u8', Array.from(new TextEncoder().encode(name))),
                     tx.pure.vector('u8', Array.from(new TextEncoder().encode(imageResult.url))),
                     tx.pure.vector('u8', Array.from(new TextEncoder().encode(metadataResult.url))),
@@ -136,7 +137,12 @@ export const ResidentCard: React.FC = () => {
             );
         } catch (error: any) {
             console.error('Mint error:', error);
-            toast.error(error.message || 'エラーが発生しました', { id: loadingToast });
+            // エラーメッセージの解析
+            let userMessage = 'エラーが発生しました';
+            if (error.message?.includes('E_ALREADY_MINTED') || error.message?.includes('1,') || error.message?.match(/MoveAbort.*1/)) {
+                userMessage = '既に住民票NFTを発行済みです';
+            }
+            toast.error(userMessage, { id: loadingToast });
             setMintStatus('idle');
         }
     };

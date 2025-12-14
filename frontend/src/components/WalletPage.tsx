@@ -5,7 +5,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import toast from 'react-hot-toast';
 import { useWallet } from '../hooks/useWallet';
 import { useTokenBalance } from '../hooks/useTokenBalance';
-import { PACKAGE_ID, TOKEN_MODULE } from '../utils/constants';
+import { PACKAGE_ID, TOKEN_MODULE, TOKEN_REGISTRY_ID } from '../utils/constants';
 import clsx from 'clsx';
 
 export const WalletPage: React.FC = () => {
@@ -43,7 +43,9 @@ export const WalletPage: React.FC = () => {
 
             tx.moveCall({
                 target: `${PACKAGE_ID}::${TOKEN_MODULE}::mint_initial_balance`,
-                arguments: [],
+                arguments: [
+                    tx.object(TOKEN_REGISTRY_ID), // Registry（重複防止用）
+                ],
             });
 
             await signAndExecuteTransaction(
@@ -60,7 +62,12 @@ export const WalletPage: React.FC = () => {
             );
         } catch (error: any) {
             console.error('Mint points error:', error);
-            toast.error(error.message || 'ポイントアカウントの作成に失敗しました', { id: loadingToast });
+            // エラーメッセージの解析
+            let userMessage = 'ポイントアカウントの作成に失敗しました';
+            if (error.message?.includes('E_ALREADY_REGISTERED') || error.message?.includes('3,') || error.message?.match(/MoveAbort.*3/)) {
+                userMessage = '既にポイントアカウントを作成済みです';
+            }
+            toast.error(userMessage, { id: loadingToast });
         } finally {
             setIsMintingPoints(false);
         }

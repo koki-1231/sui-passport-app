@@ -10,7 +10,7 @@ import L from 'leaflet';
 import { MapPin, Award, CheckCircle, Loader2, Sparkles, History, Clock } from 'lucide-react';
 import { useTokenBalance } from './hooks/useTokenBalance';
 import { useStayProofs } from './hooks/useStayProofs';
-import { PACKAGE_ID, TOKEN_MODULE, CLOCK_OBJECT_ID } from './utils/constants';
+import { PACKAGE_ID, TOKEN_MODULE, CLOCK_OBJECT_ID, TOKEN_REGISTRY_ID } from './utils/constants';
 
 // Fix Leaflet marker icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -109,7 +109,9 @@ export const StayFeature: React.FC = () => {
       const tx = new Transaction();
       tx.moveCall({
         target: `${PACKAGE_ID}::${TOKEN_MODULE}::mint_initial_balance`,
-        arguments: [],
+        arguments: [
+          tx.object(TOKEN_REGISTRY_ID), // Registry（重複防止用）
+        ],
       });
 
       await signAndExecuteTransaction(
@@ -126,7 +128,12 @@ export const StayFeature: React.FC = () => {
       );
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || '利用登録に失敗しました', { id: loadingToast });
+      // エラーメッセージの解析
+      let userMessage = '利用登録に失敗しました';
+      if (error.message?.includes('E_ALREADY_REGISTERED') || error.message?.includes('3,') || error.message?.match(/MoveAbort.*3/)) {
+        userMessage = '既に利用登録済みです';
+      }
+      toast.error(userMessage, { id: loadingToast });
     } finally {
       setIsMintingBalance(false);
     }
