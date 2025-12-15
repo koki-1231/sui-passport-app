@@ -6,72 +6,54 @@ Suiブロックチェーンを活用した**フルオンチェーン・DBレス*
 
 ---
 
+## 📚 ドキュメント
+
+| ドキュメント | 対象 | 内容 |
+|-------------|------|------|
+| [📖 ユーザーガイド](docs/user_guide.md) | 一般ユーザー | ウォレット接続、チェックイン、NFT発行の手順 |
+| [🚀 デプロイガイド](docs/deployment_guide.md) | 開発者 | Vercelへのデプロイ手順と設定方法 |
+| [🛠️ 開発者ガイド](docs/developer_guide.md) | 開発者 | アーキテクチャ、技術スタック、セットアップ詳細 |
+| [🔒 セキュリティ監査](docs/security_audit.md) | 監査人 | Sybil耐性、脆弱性分析、対策状況 |
+
+---
+
 ## ✨ 特徴
 
 - 🌍 **GPSチェックイン** - 位置情報をブロックチェーンに永続化
 - 🪪 **デジタル住民票NFT** - IPFS + Sui NFTによる証明書発行
 - 🗳️ **DAO投票** - NFT保有者による分散型意思決定
-- 🔒 **Sybil耐性** - Registry パターンによる1人1NFT制限
+- 🔒 **Sybil耐性** - Registry パターン + zkLogin（計画中）による不正防止
 - ⚡ **DBレス設計** - 外部データベース不要、全てオンチェーン
 
 ---
 
 ## 🛠️ 技術スタック
 
-### Backend (Move Smart Contract)
-| 項目 | 技術 |
-|------|------|
-| 言語 | Sui Move |
-| 設計 | DB-less Architecture (Full On-Chain) |
-| セキュリティ | Registry Pattern, Cooldown Protection |
-
-### Frontend
-| 項目 | 技術 |
-|------|------|
-| フレームワーク | React + Vite |
-| 言語 | TypeScript |
-| スタイル | Tailwind CSS v4 |
-| 地図 | React Leaflet (OpenStreetMap) |
-| アニメーション | Framer Motion |
-| SDK | @mysten/dapp-kit, @mysten/sui |
-| ストレージ | Pinata (IPFS) |
-
----
-
-## 📦 モジュール構成
-
-```
-backend/stay_mock/sources/
-├── resident_card.move   # 住民票NFT + ResidentRegistry
-├── token_management.move # ポイント管理 + TokenRegistry  
-├── dao.move              # DAO投票システム
-└── resident_nft.move     # 滞在証明
-```
+| フロントエンド | バックエンド (Sui Move) |
+|---------------|-------------------|
+| React + Vite | Sui Move (Testnet) |
+| TypeScript | DB-less Architecture |
+| Tailwind CSS v4 | Registry Pattern |
+| React Query | Cooldown Protection |
 
 ---
 
 ## 🚀 クイックスタート
 
-### 1. リポジトリのクローン
-
 ```bash
+# 1. クローン
 git clone https://github.com/koki-1231/sui-passport-app.git
 cd sui-passport-app
-```
 
-### 2. フロントエンドの起動
-
-```bash
+# 2. 依存関係インストール
 cd frontend
 npm install
+
+# 3. 環境変数設定（オプション）
+cp .env.example .env
+
+# 4. 起動
 npm run dev
-```
-
-### 3. コントラクトのデプロイ（オプション）
-
-```bash
-cd backend/stay_mock
-sui client publish --gas-budget 100000000
 ```
 
 ---
@@ -80,38 +62,13 @@ sui client publish --gas-budget 100000000
 
 | 攻撃ベクトル | 対策 | 状態 |
 |-------------|------|------|
-| NFT複製攻撃 | ResidentRegistry | ✅ |
-| TokenBalance複製 | TokenRegistry | ✅ |
-| 無限チェックイン | 5分クールダウン | ✅ |
-| 脆弱関数 | 削除済み | ✅ |
-
----
-
-## 📱 デモ
-
-🌐 **Live Demo**: https://sui-passport-app.vercel.app
-
----
-
-## 📄 ドキュメント
-
-- [操作ガイド](docs/user_guide.md)
-- [デプロイ手順](docs/deployment_guide.md)
-
----
-
-## 🤝 コントリビューション
-
-Issue、Pull Request歓迎です！
-
----
-
-## 📜 ライセンス
-
-MIT License
+| NFT複製攻撃 | ResidentRegistry | ✅ Solved |
+| TokenBalance複製 | TokenRegistry | ✅ Solved |
+| 無限チェックイン | 5分クールダウン | ✅ Solved |
+| GPSスプーフィング | zkLogin / 専用アプリ | ⚠️ Future Work |
 
 ---
 
 ## 👨‍💻 開発者
 
-Built on Sui
+Built with ❤️ on Sui
