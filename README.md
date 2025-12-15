@@ -114,4 +114,4 @@ MIT License
 
 ## 👨‍💻 開発者
 
-Built with ❤️ on Sui
+Built on Sui

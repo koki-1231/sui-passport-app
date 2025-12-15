@@ -1,5 +1,5 @@
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PACKAGE_ID, RESIDENT_CARD_MODULE } from '../utils/constants';
 
 export interface ResidentNFT {
@@ -12,23 +12,20 @@ export interface ResidentNFT {
     issuer: string;
 }
 
+// キャッシュ設定
+const STALE_TIME = 60 * 1000; // 1分間はキャッシュを新鮮とみなす（NFTは頻繁に変わらない）
+const CACHE_TIME = 10 * 60 * 1000; // 10分間キャッシュを保持
+
 export function useResidentNFT() {
     const account = useCurrentAccount();
     const suiClient = useSuiClient();
-    const [nfts, setNfts] = useState<ResidentNFT[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchMyNFTs = useCallback(async () => {
-        if (!account?.address) {
-            setNfts([]);
-            return;
-        }
+    const { data: nfts = [], isLoading, error } = useQuery<ResidentNFT[]>({
+        queryKey: ['residentNFT', account?.address],
+        queryFn: async () => {
+            if (!account?.address) return [];
 
-        setIsLoading(true);
-        setError(null);
-
-        try {
             const objects = await suiClient.getOwnedObjects({
                 owner: account.address,
                 filter: {
@@ -59,25 +56,22 @@ export function useResidentNFT() {
                 }
             }
 
-            setNfts(nftList);
-        } catch (err: any) {
-            console.error('Error fetching NFTs:', err);
-            setError(err.message || 'Failed to fetch NFTs');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [account?.address, suiClient]);
+            return nftList;
+        },
+        enabled: !!account?.address,
+        staleTime: STALE_TIME,
+        gcTime: CACHE_TIME,
+    });
 
-    // Auto-fetch when account changes
-    useEffect(() => {
-        fetchMyNFTs();
-    }, [fetchMyNFTs]);
+    const refetch = () => {
+        queryClient.invalidateQueries({ queryKey: ['residentNFT', account?.address] });
+    };
 
     return {
         nfts,
         isLoading,
-        error,
-        refetch: fetchMyNFTs,
+        error: error?.message || null,
+        refetch,
         hasNFT: nfts.length > 0,
     };
 }

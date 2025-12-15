@@ -1,5 +1,5 @@
 import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
-import { useCallback, useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PACKAGE_ID } from '../utils/constants';
 
 export interface StayProofData {
@@ -11,24 +11,20 @@ export interface StayProofData {
     rewardEarned: number;
 }
 
+// キャッシュ設定
+const STALE_TIME = 30 * 1000; // 30秒間はキャッシュを新鮮とみなす
+const CACHE_TIME = 5 * 60 * 1000; // 5分間キャッシュを保持
+
 export function useStayProofs() {
     const account = useCurrentAccount();
     const suiClient = useSuiClient();
-    const [stayProofs, setStayProofs] = useState<StayProofData[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchStayProofs = useCallback(async () => {
-        if (!account?.address) {
-            setStayProofs([]);
-            return;
-        }
+    const { data: stayProofs = [], isLoading, error } = useQuery<StayProofData[]>({
+        queryKey: ['stayProofs', account?.address],
+        queryFn: async () => {
+            if (!account?.address) return [];
 
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            // ユーザーが持っているStayProofオブジェクトを検索
             const objects = await suiClient.getOwnedObjects({
                 owner: account.address,
                 filter: {
@@ -48,7 +44,7 @@ export function useStayProofs() {
                         proofs.push({
                             id: obj.data.objectId,
                             owner: fields.owner,
-                            lat: Number(fields.lat) / 1000000, // u64から小数に変換
+                            lat: Number(fields.lat) / 1000000,
                             lng: Number(fields.lng) / 1000000,
                             timestamp: Number(fields.timestamp),
                             rewardEarned: Number(fields.reward_earned),
@@ -59,23 +55,21 @@ export function useStayProofs() {
 
             // タイムスタンプでソート（新しい順）
             proofs.sort((a, b) => b.timestamp - a.timestamp);
-            setStayProofs(proofs);
-        } catch (err: any) {
-            console.error('Error fetching stay proofs:', err);
-            setError(err.message || 'Failed to fetch stay proofs');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [account, suiClient]);
+            return proofs;
+        },
+        enabled: !!account?.address,
+        staleTime: STALE_TIME,
+        gcTime: CACHE_TIME,
+    });
 
-    useEffect(() => {
-        fetchStayProofs();
-    }, [fetchStayProofs]);
+    const refetch = () => {
+        queryClient.invalidateQueries({ queryKey: ['stayProofs', account?.address] });
+    };
 
     return {
         stayProofs,
         isLoading,
-        error,
-        refetch: fetchStayProofs,
+        error: error?.message || null,
+        refetch,
     };
 }

@@ -1,5 +1,5 @@
 import { useSuiClient } from '@mysten/dapp-kit';
-import { useCallback, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PACKAGE_ID } from '../utils/constants';
 
 export interface ProposalData {
@@ -14,16 +14,17 @@ export interface ProposalData {
     deadline: number;
 }
 
+// キャッシュ設定
+const STALE_TIME = 15 * 1000; // 15秒間はキャッシュを新鮮とみなす（投票は比較的頻繁に更新される）
+const CACHE_TIME = 5 * 60 * 1000; // 5分間キャッシュを保持
+
 export function useDAO() {
     const suiClient = useSuiClient();
-    const [proposals, setProposals] = useState<ProposalData[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchProposals = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
+    const { data: proposals = [], isLoading, error } = useQuery<ProposalData[]>({
+        queryKey: ['daoProposals'],
+        queryFn: async () => {
             // イベントベースで提案IDを取得
             const events = await suiClient.queryEvents({
                 query: {
@@ -39,11 +40,10 @@ export function useDAO() {
             });
 
             if (proposalIds.length === 0) {
-                setProposals([]);
-                return;
+                return [];
             }
 
-            // ★改善: multiGetObjects で一括取得（N+1問題の解消）
+            // multiGetObjects で一括取得（N+1問題の解消）
             const objects = await suiClient.multiGetObjects({
                 ids: proposalIds,
                 options: { showContent: true },
@@ -70,19 +70,20 @@ export function useDAO() {
                 }
             }
 
-            setProposals(proposalDetails);
-        } catch (err: any) {
-            console.error('Error fetching proposals:', err);
-            setError(err.message || 'Failed to fetch proposals');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [suiClient]);
+            return proposalDetails;
+        },
+        staleTime: STALE_TIME,
+        gcTime: CACHE_TIME,
+    });
+
+    const fetchProposals = () => {
+        queryClient.invalidateQueries({ queryKey: ['daoProposals'] });
+    };
 
     return {
         proposals,
         isLoading,
-        error,
+        error: error?.message || null,
         fetchProposals,
     };
 }

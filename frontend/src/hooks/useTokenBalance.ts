@@ -1,5 +1,5 @@
 import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
-import { useCallback, useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PACKAGE_ID } from '../utils/constants';
 
 export interface TokenBalanceData {
@@ -10,24 +10,20 @@ export interface TokenBalanceData {
     lastCheckinTimestamp: number;
 }
 
+// キャッシュ設定
+const STALE_TIME = 30 * 1000; // 30秒間はキャッシュを新鮮とみなす
+const CACHE_TIME = 5 * 60 * 1000; // 5分間キャッシュを保持
+
 export function useTokenBalance() {
     const account = useCurrentAccount();
     const suiClient = useSuiClient();
-    const [tokenBalance, setTokenBalance] = useState<TokenBalanceData | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchTokenBalance = useCallback(async () => {
-        if (!account?.address) {
-            setTokenBalance(null);
-            return;
-        }
+    const { data: tokenBalance, isLoading, error } = useQuery<TokenBalanceData | null>({
+        queryKey: ['tokenBalance', account?.address],
+        queryFn: async () => {
+            if (!account?.address) return null;
 
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            // ユーザーが持っているTokenBalanceオブジェクトを検索
             const objects = await suiClient.getOwnedObjects({
                 owner: account.address,
                 filter: {
@@ -40,33 +36,30 @@ export function useTokenBalance() {
 
             if (objects.data.length > 0 && objects.data[0].data?.content?.dataType === 'moveObject') {
                 const fields = (objects.data[0].data.content as any).fields;
-                setTokenBalance({
+                return {
                     id: objects.data[0].data.objectId,
                     owner: fields.owner,
                     balance: Number(fields.balance) || 0,
                     totalCheckins: Number(fields.total_checkins) || 0,
                     lastCheckinTimestamp: Number(fields.last_checkin_timestamp) || 0,
-                });
-            } else {
-                setTokenBalance(null);
+                };
             }
-        } catch (err: any) {
-            console.error('Error fetching token balance:', err);
-            setError(err.message || 'Failed to fetch token balance');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [account, suiClient]);
+            return null;
+        },
+        enabled: !!account?.address,
+        staleTime: STALE_TIME,
+        gcTime: CACHE_TIME,
+    });
 
-    useEffect(() => {
-        fetchTokenBalance();
-    }, [fetchTokenBalance]);
+    const refetch = () => {
+        queryClient.invalidateQueries({ queryKey: ['tokenBalance', account?.address] });
+    };
 
     return {
-        tokenBalance,
+        tokenBalance: tokenBalance ?? null,
         hasTokenBalance: tokenBalance !== null,
         isLoading,
-        error,
-        refetch: fetchTokenBalance,
+        error: error?.message || null,
+        refetch,
     };
 }
