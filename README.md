@@ -68,7 +68,3 @@ npm run dev
 | GPSスプーフィング | zkLogin / 専用アプリ | ⚠️ Future Work |
 
 ---
-
-## 👨‍💻 開発者
-
-Built with ❤️ on Sui
