@@ -1,5 +1,5 @@
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface WalletBalance {
     totalBalance: string;
@@ -10,23 +10,21 @@ export interface WalletBalance {
     }>;
 }
 
+// キャッシュ設定
+const STALE_TIME = 15 * 1000; // 15秒間はキャッシュを新鮮とみなす
+const CACHE_TIME = 5 * 60 * 1000; // 5分間キャッシュを保持
+const REFETCH_INTERVAL = 30 * 1000; // 30秒ごとに自動更新
+
 export function useWallet() {
     const account = useCurrentAccount();
     const suiClient = useSuiClient();
-    const [balance, setBalance] = useState<WalletBalance | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchBalance = useCallback(async () => {
-        if (!account?.address) {
-            setBalance(null);
-            return;
-        }
+    const { data: balance, isLoading, error } = useQuery<WalletBalance | null>({
+        queryKey: ['walletBalance', account?.address],
+        queryFn: async () => {
+            if (!account?.address) return null;
 
-        setIsLoading(true);
-        setError(null);
-
-        try {
             const coins = await suiClient.getCoins({
                 owner: account.address,
                 coinType: '0x2::sui::SUI',
@@ -40,38 +38,30 @@ export function useWallet() {
             // Convert from MIST to SUI (1 SUI = 10^9 MIST)
             const totalSUI = Number(totalRaw) / 1e9;
 
-            setBalance({
+            return {
                 totalBalance: totalSUI.toFixed(4),
                 totalBalanceRaw: totalRaw,
                 coins: coins.data.map((coin) => ({
                     coinType: coin.coinType,
                     balance: (Number(coin.balance) / 1e9).toFixed(4),
                 })),
-            });
-        } catch (err: any) {
-            console.error('Error fetching balance:', err);
-            setError(err.message || 'Failed to fetch balance');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [account?.address, suiClient]);
+            };
+        },
+        enabled: !!account?.address,
+        staleTime: STALE_TIME,
+        gcTime: CACHE_TIME,
+        refetchInterval: REFETCH_INTERVAL, // 残高は定期的に更新
+    });
 
-    // Auto-fetch when account changes
-    useEffect(() => {
-        fetchBalance();
-    }, [fetchBalance]);
-
-    // Refetch on interval (every 30 seconds)
-    useEffect(() => {
-        const interval = setInterval(fetchBalance, 30000);
-        return () => clearInterval(interval);
-    }, [fetchBalance]);
+    const refetch = () => {
+        queryClient.invalidateQueries({ queryKey: ['walletBalance', account?.address] });
+    };
 
     return {
-        balance,
+        balance: balance ?? null,
         isLoading,
-        error,
-        refetch: fetchBalance,
+        error: error?.message || null,
+        refetch,
         address: account?.address || null,
     };
 }

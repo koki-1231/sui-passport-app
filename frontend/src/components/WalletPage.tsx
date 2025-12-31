@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { Wallet, Send, RefreshCw, Copy, CheckCircle, Loader2, ArrowUpRight } from 'lucide-react';
+import { Wallet, Send, RefreshCw, Copy, CheckCircle, Loader2, ArrowUpRight, Coins, Sparkles } from 'lucide-react';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import toast from 'react-hot-toast';
 import { useWallet } from '../hooks/useWallet';
+import { useTokenBalance } from '../hooks/useTokenBalance';
+import { PACKAGE_ID, TOKEN_MODULE, TOKEN_REGISTRY_ID } from '../utils/constants';
 import clsx from 'clsx';
 
 export const WalletPage: React.FC = () => {
     const account = useCurrentAccount();
     const { balance, isLoading, refetch, address } = useWallet();
+    const { tokenBalance, hasTokenBalance, isLoading: isLoadingPoints, refetch: refetchPoints } = useTokenBalance();
     const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
     const [recipient, setRecipient] = useState('');
     const [amount, setAmount] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [isMintingPoints, setIsMintingPoints] = useState(false);
     const [copied, setCopied] = useState(false);
 
     const handleCopyAddress = () => {
@@ -22,6 +26,50 @@ export const WalletPage: React.FC = () => {
             setCopied(true);
             toast.success('アドレスをコピーしました');
             setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleMintPointsBalance = async () => {
+        if (!account) {
+            toast.error('ウォレットを接続してください');
+            return;
+        }
+
+        setIsMintingPoints(true);
+        const loadingToast = toast.loading('ポイントアカウントを作成中...');
+
+        try {
+            const tx = new Transaction();
+
+            tx.moveCall({
+                target: `${PACKAGE_ID}::${TOKEN_MODULE}::mint_initial_balance`,
+                arguments: [
+                    tx.object(TOKEN_REGISTRY_ID), // Registry（重複防止用）
+                ],
+            });
+
+            await signAndExecuteTransaction(
+                { transaction: tx },
+                {
+                    onSuccess: () => {
+                        toast.success('ポイントアカウントが作成されました！', { id: loadingToast });
+                        setTimeout(refetchPoints, 2000);
+                    },
+                    onError: (error) => {
+                        throw error;
+                    },
+                }
+            );
+        } catch (error: any) {
+            console.error('Mint points error:', error);
+            // エラーメッセージの解析
+            let userMessage = 'ポイントアカウントの作成に失敗しました';
+            if (error.message?.includes('E_ALREADY_REGISTERED') || error.message?.includes('3,') || error.message?.match(/MoveAbort.*3/)) {
+                userMessage = '既にポイントアカウントを作成済みです';
+            }
+            toast.error(userMessage, { id: loadingToast });
+        } finally {
+            setIsMintingPoints(false);
         }
     };
 
@@ -42,7 +90,6 @@ export const WalletPage: React.FC = () => {
             return;
         }
 
-        // Check if recipient is a valid Sui address
         if (!recipient.startsWith('0x') || recipient.length !== 66) {
             toast.error('有効なSuiアドレスを入力してください');
             return;
@@ -53,8 +100,6 @@ export const WalletPage: React.FC = () => {
 
         try {
             const tx = new Transaction();
-
-            // Convert SUI to MIST (1 SUI = 10^9 MIST)
             const amountInMist = Math.floor(amountNumber * 1e9);
 
             const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountInMist)]);
@@ -104,19 +149,19 @@ export const WalletPage: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full p-4 space-y-6 overflow-y-auto">
-            {/* Balance Card */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white shadow-xl">
-                <div className="flex justify-between items-start mb-4">
+        <div className="flex flex-col h-full p-4 space-y-4 overflow-y-auto pb-20">
+            {/* SUI Balance Card */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-5 text-white shadow-xl">
+                <div className="flex justify-between items-start mb-3">
                     <div>
-                        <p className="text-white/70 text-sm font-medium mb-1">残高</p>
+                        <p className="text-white/70 text-xs font-medium mb-1">SUI残高</p>
                         <div className="flex items-baseline gap-2">
                             {isLoading ? (
                                 <Loader2 className="w-6 h-6 animate-spin" />
                             ) : (
                                 <>
-                                    <span className="text-4xl font-bold">{balance?.totalBalance || '0'}</span>
-                                    <span className="text-lg opacity-80">SUI</span>
+                                    <span className="text-3xl font-bold">{balance?.totalBalance || '0'}</span>
+                                    <span className="text-sm opacity-80">SUI</span>
                                 </>
                             )}
                         </div>
@@ -125,33 +170,85 @@ export const WalletPage: React.FC = () => {
                         onClick={refetch}
                         className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
                     >
-                        <RefreshCw className={clsx("w-5 h-5", isLoading && "animate-spin")} />
+                        <RefreshCw className={clsx("w-4 h-4", isLoading && "animate-spin")} />
                     </button>
                 </div>
 
-                {/* Address */}
-                <div className="flex items-center gap-2 bg-white/10 rounded-lg p-3">
-                    <span className="text-xs font-mono truncate flex-1">
+                <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2">
+                    <span className="text-[10px] font-mono truncate flex-1">
                         {address}
                     </span>
                     <button
                         onClick={handleCopyAddress}
-                        className="p-1.5 hover:bg-white/20 rounded transition-colors"
+                        className="p-1 hover:bg-white/20 rounded transition-colors"
                     >
                         {copied ? (
-                            <CheckCircle className="w-4 h-4 text-green-300" />
+                            <CheckCircle className="w-3 h-3 text-green-300" />
                         ) : (
-                            <Copy className="w-4 h-4" />
+                            <Copy className="w-3 h-3" />
                         )}
                     </button>
                 </div>
             </div>
 
+            {/* Points Balance Card */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-xl">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                        <Coins className="w-5 h-5" />
+                        <p className="text-white/90 text-xs font-medium">チェックインポイント</p>
+                    </div>
+                    <button
+                        onClick={refetchPoints}
+                        className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+                    >
+                        <RefreshCw className={clsx("w-4 h-4", isLoadingPoints && "animate-spin")} />
+                    </button>
+                </div>
+
+                {isLoadingPoints ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                ) : hasTokenBalance ? (
+                    <div className="space-y-2">
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold">{tokenBalance?.balance || 0}</span>
+                            <span className="text-sm opacity-80">PT</span>
+                        </div>
+                        <p className="text-xs text-white/70">
+                            累計チェックイン: {tokenBalance?.totalCheckins || 0}回
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <p className="text-sm text-white/80">
+                            ポイントアカウントがまだ作成されていません
+                        </p>
+                        <button
+                            onClick={handleMintPointsBalance}
+                            disabled={isMintingPoints}
+                            className="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                        >
+                            {isMintingPoints ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    作成中...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    ポイントアカウントを作成
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+            </div>
+
             {/* Transfer Section */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <Send className="w-5 h-5 text-purple-400" />
-                    <h3 className="text-lg font-bold text-slate-700">送金</h3>
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/20 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                    <Send className="w-4 h-4 text-purple-400" />
+                    <h3 className="text-base font-bold text-slate-700">SUI送金</h3>
                 </div>
 
                 <input
@@ -159,7 +256,7 @@ export const WalletPage: React.FC = () => {
                     placeholder="送金先アドレス (0x...)"
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/50 border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:border-purple-400 transition-colors text-sm font-mono"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/50 border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:border-purple-400 transition-colors text-xs font-mono"
                 />
 
                 <div className="relative">
@@ -170,28 +267,26 @@ export const WalletPage: React.FC = () => {
                         onChange={(e) => setAmount(e.target.value)}
                         step="0.0001"
                         min="0"
-                        className="w-full px-4 py-3 pr-16 rounded-xl bg-white/50 border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:border-purple-400 transition-colors"
+                        className="w-full px-3 py-2.5 pr-14 rounded-xl bg-white/50 border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:border-purple-400 transition-colors text-sm"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">
                         SUI
                     </span>
                 </div>
 
-                {/* Quick amount buttons */}
                 <div className="flex gap-2">
                     {['0.1', '0.5', '1.0', 'MAX'].map((val) => (
                         <button
                             key={val}
                             onClick={() => {
                                 if (val === 'MAX' && balance) {
-                                    // Leave some for gas
                                     const maxAmount = Math.max(0, parseFloat(balance.totalBalance) - 0.01);
                                     setAmount(maxAmount.toFixed(4));
                                 } else {
                                     setAmount(val);
                                 }
                             }}
-                            className="flex-1 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors"
+                            className="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors"
                         >
                             {val}
                         </button>
@@ -202,32 +297,24 @@ export const WalletPage: React.FC = () => {
                     onClick={handleTransfer}
                     disabled={!recipient || !amount || isSending}
                     className={clsx(
-                        "w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform flex items-center justify-center gap-2",
+                        "w-full py-3 rounded-xl font-bold text-base shadow-lg transition-all transform flex items-center justify-center gap-2",
                         recipient && amount && !isSending
-                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:-translate-y-1 shadow-purple-900/30'
+                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:-translate-y-0.5 shadow-purple-900/30'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     )}
                 >
                     {isSending ? (
                         <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin" />
                             送金中...
                         </>
                     ) : (
                         <>
-                            <ArrowUpRight className="w-5 h-5" />
+                            <ArrowUpRight className="w-4 h-4" />
                             送金する
                         </>
                     )}
                 </button>
-            </div>
-
-            {/* Recent Transactions (placeholder) */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
-                <h3 className="text-lg font-bold text-slate-700 mb-4">取引履歴</h3>
-                <p className="text-sm text-slate-500 text-center py-8">
-                    取引履歴はまもなく利用可能になります
-                </p>
             </div>
         </div>
     );
