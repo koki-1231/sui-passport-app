@@ -18,6 +18,19 @@ export const DELEGATION_REGISTRY_ID = import.meta.env.VITE_DELEGATION_REGISTRY_I
 // Regional DAO Object IDs
 export const GLOBAL_PLATFORM_STATE_ID = import.meta.env.VITE_GLOBAL_PLATFORM_STATE_ID || '0x1160e82eedfae677b7eace58bf6d8af0efbe6e5169ccff1a920271f5bff31f5f';
 
+// DAO Object IDs (互換性のため)
+export const DAO_ID = GLOBAL_DAO_CONFIG_ID;
+export const REGIONAL_DAO_ID = GLOBAL_PLATFORM_STATE_ID;
+
+// Resident Card Registry ID
+export const RESIDENT_CARD_REGISTRY_ID = import.meta.env.VITE_RESIDENT_CARD_REGISTRY_ID || RESIDENT_REGISTRY_ID;
+
+// Resident Card Type
+export const RESIDENT_CARD_TYPE = `${PACKAGE_ID}::resident_card::ResidentCard`;
+
+// ZK Proof Object IDs (デプロイ後に更新)
+export const ZK_PROOF_REGISTRY_ID = import.meta.env.VITE_ZK_PROOF_REGISTRY_ID || '0x0000000000000000000000000000000000000000000000000000000000000000';
+
 // Module names (これらは変更されないためハードコード)
 export const STAY_MODULE = 'stay_feature';
 export const RESIDENT_CARD_MODULE = 'resident_card';
@@ -25,6 +38,7 @@ export const DAO_MODULE = 'dao';
 export const TOKEN_MODULE = 'token_management';
 export const ENHANCED_DAO_MODULE = 'enhanced_dao';
 export const REGIONAL_DAO_MODULE = 'regional_dao';
+export const ZK_LOCATION_PROOF_MODULE = 'zk_location_proof';
 
 // Function names
 export const MINT_RESIDENT_CARD = 'mint_resident_card';
