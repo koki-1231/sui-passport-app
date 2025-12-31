@@ -1,8 +1,9 @@
-# Deployment Information - v2.0 (MyauChain統合版)
+# Deployment Information - v2.1 (ZK証明統合版)
 
 ## Package Information
 
 **Package ID:** `0x58795289efc10f2c57b22c39d1739a595193795ca480cff2a04b0a1375494204`
+> ⚠️ ZK証明モジュール追加後は再デプロイが必要
 
 **Transaction Digest:** `B75V1qmom63wXqbCrqPz5J4WnDNR8dB4gyhDUBYFHMkg`
 
